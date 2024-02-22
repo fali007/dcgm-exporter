@@ -126,6 +126,10 @@ func (c *DCGMCollector) GetMetrics() (MetricsByCounter, error) {
 		} else if c.SysInfo.InfoType == dcgm.FE_CPU || c.SysInfo.InfoType == dcgm.FE_CPU_CORE {
 			ToCPUMetric(metrics, vals, c.Counters, mi, c.UseOldNamespace, c.Hostname)
 		} else {
+			GenerateMigCache(vals,
+				c.Counters,
+				mi.DeviceInfo,
+				mi.InstanceInfo)
 			ToMetric(metrics,
 				vals,
 				c.Counters,
@@ -245,6 +249,19 @@ func ToCPUMetric(metrics MetricsByCounter,
 		}
 
 		metrics[m.Counter] = append(metrics[m.Counter], m)
+	}
+}
+
+func GenerateMigCache(
+	values []dcgm.FieldValue_v1,
+	c []Counter,
+	d dcgm.Device,
+	instanceInfo *GPUInstanceInfo
+) {
+	fmt.Printf("\n InstanceInfo : %+v \n", instanceInfo)
+	fmt.Printf("\n Device : %+v \n", d)
+	for i, val := range values {
+		fmt.Printf("\n \t%d - Value : %+v \n", i, val)
 	}
 }
 
