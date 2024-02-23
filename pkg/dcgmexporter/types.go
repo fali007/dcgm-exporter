@@ -105,6 +105,19 @@ type Metric struct {
 	Attributes map[string]string
 }
 
+type MigResourceCache struct {
+	Memory        float64
+	Tensor        float64
+	SMActive      float64
+	SMOccupancy   float64
+}
+
+type MigResources struct {
+	Profile string
+	UUID string
+	ResourceCache MigResourceCache
+}
+
 func (m Metric) getIDOfType(idType KubernetesGPUIDType) (string, error) {
 	// For MIG devices, return the MIG profile instead of
 	if m.MigProfile != "" {

@@ -97,9 +97,60 @@ func (c *DCGMCollector) Cleanup() {
 	}
 }
 
+func GenerateMigCache() {
+	migResourceCache := make(map[uint][]MigResources)
+	for _, mi := range monitoringInfo {
+		var vals []dcgm.FieldValue_v1
+		var err error
+		// Added else for testsing in non mig system
+		if mi.InstanceInfo != nil {
+			fileds = dcgm.Short{525, 1004, 1002, 1003}
+			vals, err = dcgm.EntityGetLatestValues(mi.Entity.EntityGroupId, mi.Entity.EntityId, c.DeviceFields)
+		} else {
+			fileds = dcgm.Short{525, 1004, 1002, 1003}
+			vals, err = dcgm.EntityGetLatestValues(mi.Entity.EntityGroupId, mi.Entity.EntityId, c.DeviceFields)
+		}
+		if err != nil {
+			if derr, ok := err.(*dcgm.DcgmError); ok {
+				if derr.Code == dcgm.DCGM_ST_CONNECTION_NOT_VALID {
+					logrus.Fatal("Could not retrieve metrics: ", err)
+				}
+			}
+			return nil, err
+		}
+		migCache = MigResources{}
+		for _, v := range vals {
+			v := ToString(val)
+			if v == SkipDCGMValue {
+				continue
+			}
+			if val.FieldId == 525 {
+				migCache.Memory = v
+			} else if val.FieldId == 1004 {
+				migCache.Tensor = v
+			} else if val.FieldId == 1002 {
+				migCache.SMActive = v
+			} else if val.FieldId == 1003 {
+				migCache.SMOccupancy = v
+			} else {
+				continue
+			}
+		}
+		v, ok := migResourceCache[mi.DeviceInfo.GPU]
+		if ok {
+			migResourceCache[mi.DeviceInfo.GPU] = append(migResourceCache[mi.DeviceInfo.GPU], migCache)
+		} else {
+			migResourceCache[mi.DeviceInfo.GPU] = MigResources{migCache}
+		}
+	}
+	fmt.Printf("\nMig resource cache : %+v\n", migResourceCache)
+}
+
 func (c *DCGMCollector) GetMetrics() (MetricsByCounter, error) {
 	monitoringInfo := GetMonitoredEntities(c.SysInfo)
 
+	GenerateMigCache(monitoringInfo)
+	
 	metrics := make(MetricsByCounter)
 
 	for _, mi := range monitoringInfo {
@@ -126,10 +177,6 @@ func (c *DCGMCollector) GetMetrics() (MetricsByCounter, error) {
 		} else if c.SysInfo.InfoType == dcgm.FE_CPU || c.SysInfo.InfoType == dcgm.FE_CPU_CORE {
 			ToCPUMetric(metrics, vals, c.Counters, mi, c.UseOldNamespace, c.Hostname)
 		} else {
-			GenerateMigCache(vals,
-				c.Counters,
-				mi.DeviceInfo,
-				mi.InstanceInfo)
 			ToMetric(metrics,
 				vals,
 				c.Counters,
@@ -249,19 +296,6 @@ func ToCPUMetric(metrics MetricsByCounter,
 		}
 
 		metrics[m.Counter] = append(metrics[m.Counter], m)
-	}
-}
-
-func GenerateMigCache(
-	values []dcgm.FieldValue_v1,
-	c []Counter,
-	d dcgm.Device,
-	instanceInfo *GPUInstanceInfo
-) {
-	fmt.Printf("\n InstanceInfo : %+v \n", instanceInfo)
-	fmt.Printf("\n Device : %+v \n", d)
-	for i, val := range values {
-		fmt.Printf("\n \t%d - Value : %+v \n", i, val)
 	}
 }
 
