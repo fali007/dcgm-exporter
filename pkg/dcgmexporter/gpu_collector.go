@@ -134,7 +134,7 @@ func GenerateMigCache(monitoringInfo []MonitoringInfo) {
 				continue
 			}
 		}
-		mi.InstanceInfo != nil{
+		if mi.InstanceInfo != nil {
 			migCache.Profile = mi.InstanceInfo.ProfileName
 		}
 		migCache.UUID = mi.DeviceInfo.UUID
