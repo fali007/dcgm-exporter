@@ -106,10 +106,10 @@ type Metric struct {
 }
 
 type MigResourceCache struct {
-	Memory        float64
-	Tensor        float64
-	SMActive      float64
-	SMOccupancy   float64
+	Memory        string
+	Tensor        string
+	SMActive      string
+	SMOccupancy   string
 }
 
 type MigResources struct {
