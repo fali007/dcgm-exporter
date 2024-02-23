@@ -97,18 +97,17 @@ func (c *DCGMCollector) Cleanup() {
 	}
 }
 
-func GenerateMigCache() {
+func GenerateMigCache(monitoringInfo []MonitoringInfo) {
 	migResourceCache := make(map[uint][]MigResources)
 	for _, mi := range monitoringInfo {
 		var vals []dcgm.FieldValue_v1
 		var err error
+		fileds := []dcgm.Short{dcgm.DCGM_FI_DEV_VGPU_MEMORY_USAGE, dcgm.DCGM_FI_PROF_PIPE_TENSOR_ACTIVE, dcgm.DCGM_FI_PROF_SM_ACTIVE, dcgm.DCGM_FI_PROF_SM_OCCUPANCY}
 		// Added else for testsing in non mig system
 		if mi.InstanceInfo != nil {
-			fileds = dcgm.Short{525, 1004, 1002, 1003}
-			vals, err = dcgm.EntityGetLatestValues(mi.Entity.EntityGroupId, mi.Entity.EntityId, c.DeviceFields)
+			vals, err = dcgm.EntityGetLatestValues(mi.Entity.EntityGroupId, mi.Entity.EntityId, fileds)
 		} else {
-			fileds = dcgm.Short{525, 1004, 1002, 1003}
-			vals, err = dcgm.EntityGetLatestValues(mi.Entity.EntityGroupId, mi.Entity.EntityId, c.DeviceFields)
+			vals, err = dcgm.EntityGetLatestValues(mi.Entity.EntityGroupId, mi.Entity.EntityId, fileds)
 		}
 		if err != nil {
 			if derr, ok := err.(*dcgm.DcgmError); ok {
@@ -116,7 +115,6 @@ func GenerateMigCache() {
 					logrus.Fatal("Could not retrieve metrics: ", err)
 				}
 			}
-			return nil, err
 		}
 		migCache = MigResources{}
 		for _, v := range vals {
