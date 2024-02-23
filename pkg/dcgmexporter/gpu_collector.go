@@ -102,7 +102,7 @@ func GenerateMigCache(monitoringInfo []MonitoringInfo) {
 	for _, mi := range monitoringInfo {
 		var vals []dcgm.FieldValue_v1
 		var err error
-		fileds := []dcgm.Short{dcgm.DCGM_FI_DEV_VGPU_MEMORY_USAGE, dcgm.DCGM_FI_PROF_PIPE_TENSOR_ACTIVE, dcgm.DCGM_FI_PROF_SM_ACTIVE, dcgm.DCGM_FI_PROF_SM_OCCUPANCY}
+		fileds := []dcgm.Short{dcgm.DCGM_FI_DEV_MEM_COPY_UTIL, dcgm.DCGM_FI_PROF_PIPE_TENSOR_ACTIVE, dcgm.DCGM_FI_PROF_SM_ACTIVE, dcgm.DCGM_FI_PROF_SM_OCCUPANCY}
 		// Added else for testsing in non mig system
 		if mi.InstanceInfo != nil {
 			vals, err = dcgm.EntityGetLatestValues(mi.Entity.EntityGroupId, mi.Entity.EntityId, fileds)
@@ -122,7 +122,7 @@ func GenerateMigCache(monitoringInfo []MonitoringInfo) {
 			if v == SkipDCGMValue {
 				continue
 			}
-			if val.FieldId == 525 {
+			if val.FieldId == 204 {
 				migCache.ResourceCache.Memory = v
 			} else if val.FieldId == 1004 {
 				migCache.ResourceCache.Tensor = v
@@ -152,7 +152,7 @@ func (c *DCGMCollector) GetMetrics() (MetricsByCounter, error) {
 	monitoringInfo := GetMonitoredEntities(c.SysInfo)
 
 	GenerateMigCache(monitoringInfo)
-	
+
 	metrics := make(MetricsByCounter)
 
 	for _, mi := range monitoringInfo {

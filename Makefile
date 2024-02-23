@@ -61,7 +61,7 @@ endif
 ubuntu22.04:
 	$(DOCKERCMD) --pull \
 		--output $(OUTPUT) \
-		--platform $(PLATFORMS) \
+		--platform linux/amd64 \
 		--build-arg "GOLANG_VERSION=$(GOLANG_VERSION)" \
 		--build-arg "DCGM_VERSION=$(DCGM_VERSION)" \
 		--tag "$(REGISTRY)/dcgm-exporter:$(FULL_VERSION)-ubuntu22.04" \

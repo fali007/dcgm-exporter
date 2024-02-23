@@ -106,15 +106,15 @@ type Metric struct {
 }
 
 type MigResourceCache struct {
-	Memory        string
-	Tensor        string
-	SMActive      string
-	SMOccupancy   string
+	Memory      string
+	Tensor      string
+	SMActive    string
+	SMOccupancy string
 }
 
 type MigResources struct {
-	Profile string
-	UUID string
+	Profile       string
+	UUID          string
 	ResourceCache MigResourceCache
 }
 
