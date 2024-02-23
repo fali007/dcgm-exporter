@@ -116,29 +116,33 @@ func GenerateMigCache(monitoringInfo []MonitoringInfo) {
 				}
 			}
 		}
-		migCache = MigResources{}
-		for _, v := range vals {
+		migCache := MigResources{}
+		for _, val := range vals {
 			v := ToString(val)
 			if v == SkipDCGMValue {
 				continue
 			}
 			if val.FieldId == 525 {
-				migCache.Memory = v
+				migCache.ResourceCache.Memory = v
 			} else if val.FieldId == 1004 {
-				migCache.Tensor = v
+				migCache.ResourceCache.Tensor = v
 			} else if val.FieldId == 1002 {
-				migCache.SMActive = v
+				migCache.ResourceCache.SMActive = v
 			} else if val.FieldId == 1003 {
-				migCache.SMOccupancy = v
+				migCache.ResourceCache.SMOccupancy = v
 			} else {
 				continue
 			}
 		}
+		mi.InstanceInfo != nil{
+			migCache.Profile = mi.InstanceInfo.ProfileName
+		}
+		migCache.UUID = mi.DeviceInfo.UUID
 		v, ok := migResourceCache[mi.DeviceInfo.GPU]
 		if ok {
-			migResourceCache[mi.DeviceInfo.GPU] = append(migResourceCache[mi.DeviceInfo.GPU], migCache)
+			migResourceCache[mi.DeviceInfo.GPU] = append(v, migCache)
 		} else {
-			migResourceCache[mi.DeviceInfo.GPU] = MigResources{migCache}
+			migResourceCache[mi.DeviceInfo.GPU] = []MigResources{migCache}
 		}
 	}
 	fmt.Printf("\nMig resource cache : %+v\n", migResourceCache)
