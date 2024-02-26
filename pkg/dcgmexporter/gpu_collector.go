@@ -97,15 +97,15 @@ func generateMigCache(monitoringInfo []MonitoringInfo) map[uint][]MigResources {
 				continue
 			}
 			if val.FieldId == 1004 {
-				migCache.ResourceCache.Tensor = v
+				migCache.ResourceCache.Tensor = float_value
 			} else if val.FieldId == 1005 {
-				migCache.ResourceCache.Dram = v
+				migCache.ResourceCache.Dram = float_value
 			} else if val.FieldId == 1006 {
-				migCache.ResourceCache.FP64 = v
+				migCache.ResourceCache.FP64 = float_value
 			} else if val.FieldId == 1007 {
-				migCache.ResourceCache.FP32 = v
+				migCache.ResourceCache.FP32 = float_value
 			} else if val.FieldId == 1008 {
-				migCache.ResourceCache.FP16 = v
+				migCache.ResourceCache.FP16 = float_value
 			} else {
 				continue
 			}
