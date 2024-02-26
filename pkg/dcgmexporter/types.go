@@ -106,11 +106,11 @@ type Metric struct {
 }
 
 type MigResourceCache struct {
-	Tensor      string
-	Dram        string
-	FP64        string
-	FP32        string
-	FP16        string
+	Tensor      float64
+	Dram        float64
+	FP64        float64
+	FP32        float64
+	FP16        float64
 }
 
 type MigResources struct {
