@@ -282,7 +282,7 @@ func migDeviceResource(v, profile, id string, gpu uint, counter Counter, migReso
 	// Divide Active Power
 	active_power := value - 90.0
 	// TODO
-	cachedResource, ok := migResourceCache[id]
+	cachedResource, ok := migResourceCache[gpu]
 	if !ok {
 		return v
 	}
@@ -292,7 +292,7 @@ func migDeviceResource(v, profile, id string, gpu uint, counter Counter, migReso
 	return fmt.Sprintf("%f", total_power)
 }
 func processMigCacheForPower(m []MigResources, id string, idle_power float64) float64 {
-	totalResource := MigResources{}
+	totalResource := MigResourceCache{}
 	var mig_instance MigResources
 	for device := range m {
 		totalResource.Tensor += device.ResourceCache.Tensor
