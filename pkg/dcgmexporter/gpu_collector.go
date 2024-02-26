@@ -283,10 +283,10 @@ func migDeviceResource(v, profile, id string, gpu uint, counter Counter, migReso
 
 	// Divide Idle power (Divide by scaling factor)
 	// How to get Idle power (Take minimum?)
-	scaled_idle_power := min(90.0, v) * float64(scaling_factor) / 7
+	scaled_idle_power := min(90.0, value) * float64(scaling_factor) / 7
 
 	// Divide Active Power
-	active_power := value - min(90.0, v)
+	active_power := value - min(90.0, value)
 	// TODO
 	cachedResource, ok := migResourceCache[gpu]
 	if !ok {
@@ -332,7 +332,7 @@ func processMigCacheForPower(m []MigResources, id string, idle_power float64) (f
 	}
 
 	if denom == 0 {
-		return nil, errors.New("Denominator is 0")
+		return 0.0, errors.New("Denominator is 0")
 	}
 
 	idle_power_scaled := (idle_power / denom) * (mig_instance.ResourceCache.Tensor/totalResource.Tensor + mig_instance.ResourceCache.Dram/totalResource.Dram + mig_instance.ResourceCache.FP64/totalResource.FP64 + mig_instance.ResourceCache.FP32/totalResource.FP32 + mig_instance.ResourceCache.FP16/totalResource.FP16)
