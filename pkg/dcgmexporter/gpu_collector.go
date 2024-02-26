@@ -313,13 +313,13 @@ func migDeviceResource(v, profile, uuid string, gpu uint, counter Counter, migRe
 		fmt.Println(err)
 		return v
 	}
-	value, err := strconv.Atoi(v)
+	value, err := strconv.ParseFloat(v, 64)
 	if err != nil {
 		fmt.Println(err)
 		return v
 	}
 
-	scaled_value := float64(value) * float64(scaling_factor) / 7
+	scaled_value := value * float64(scaling_factor) / 7
 	fmt.Printf("\tScaled value %f\n", scaled_value)
 	return fmt.Sprintf("%f", scaled_value)
 }
