@@ -108,7 +108,7 @@ func generateMigCache(monitoringInfo []MonitoringInfo) map[uint][]MigResources {
 		if mi.InstanceInfo != nil {
 			vals, err = dcgm.EntityGetLatestValues(mi.Entity.EntityGroupId, mi.Entity.EntityId, fileds)
 		} else {
-			vals, err = dcgm.EntityGetLatestValues(mi.Entity.EntityGroupId, mi.Entity.EntityId, fileds)
+			return nil
 		}
 		if err != nil {
 			if derr, ok := err.(*dcgm.DcgmError); ok {
@@ -146,7 +146,6 @@ func generateMigCache(monitoringInfo []MonitoringInfo) map[uint][]MigResources {
 			migResourceCache[mi.DeviceInfo.GPU] = []MigResources{migCache}
 		}
 	}
-	fmt.Printf("\nMig resource cache : %+v\n", migResourceCache)
 	return migResourceCache
 }
 
@@ -308,6 +307,7 @@ func migDeviceResource(v, profile, uuid string, gpu uint, counter Counter, migRe
 	if counter.FieldID != 155 {
 		return v
 	}
+	fmt.Printf("\nAttributing mig resource metric %+v\nCurrent value %s, Profile %s\n", counter, v, profile)
 	scaling_factor, err := strconv.Atoi(string(profile[0]))
 	if err != nil {
 		return v
@@ -318,6 +318,7 @@ func migDeviceResource(v, profile, uuid string, gpu uint, counter Counter, migRe
 	}
 
 	scaled_value := float64(value) * float64(scaling_factor) / 7
+	fmt.Printf("\tScaled value %f\n", scaled_value)
 	return fmt.Sprintf("%f", scaled_value)
 }
 
