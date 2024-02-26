@@ -322,7 +322,7 @@ func processMigCacheForPower(m []MigResources, id string, idle_power float64) fl
 		denom += 1
 	}
 
-	idle_power_scaled := (idle_power / denom) * (mig_instance.ResourceCache.Tensor/totalResource.Tensor + mig_instance.ResourceCache.Dram/totalResource.Dram + mig_instance.ResourceCache.FP64 / totalResource.FP64 + mig_instance.ResourceCache.FP32/totalResource.FP32 + mig_instance.ResourceCache.FP16/totalResource.FP16)
+	idle_power_scaled := (idle_power / denom) * (mig_instance.ResourceCache.Tensor/totalResource.Tensor + mig_instance.ResourceCache.Dram/totalResource.Dram + mig_instance.ResourceCache.FP64/totalResource.FP64 + mig_instance.ResourceCache.FP32/totalResource.FP32 + mig_instance.ResourceCache.FP16/totalResource.FP16)
 	return idle_power_scaled
 }
 func ToMetric(
