@@ -20,8 +20,8 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"strings"
 	"strconv"
+	"strings"
 
 	"github.com/NVIDIA/go-dcgm/pkg/dcgm"
 	"github.com/sirupsen/logrus"
@@ -189,7 +189,7 @@ func (c *DCGMCollector) GetMetrics() (MetricsByCounter, error) {
 				c.UseOldNamespace,
 				c.Hostname,
 				c.ReplaceBlanksInModelName,
-			    migResourceCache)
+				migResourceCache)
 		}
 	}
 
@@ -304,7 +304,7 @@ func ToCPUMetric(metrics MetricsByCounter,
 	}
 }
 
-func migDeviceResource(v, profile, uuid string, gpu uint, counter Counter, migResourceCache *map[uint][]MigResources) string{
+func migDeviceResource(v, profile, uuid string, gpu uint, counter Counter, migResourceCache *map[uint][]MigResources) string {
 	if counter.FieldID != 155 {
 		return v
 	}
