@@ -120,7 +120,8 @@ func generateMigCache(monitoringInfo []MonitoringInfo) map[uint]*MigResources {
 		var migCache *MigResources
 		migCache, ok := migResourceCache[mi.DeviceInfo.GPU]
 		if !ok {
-			migCache = &MigResources{0.0, 0.0, 0.0, 0.0, 0.0}
+			migCache = &MigResources{}
+			migResourceCache[mi.DeviceInfo.GPU] = migCache
 		}
 		for _, val := range vals {
 			v := ToString(val)
@@ -134,7 +135,7 @@ func generateMigCache(monitoringInfo []MonitoringInfo) map[uint]*MigResources {
 			if val.FieldId == 1004 {
 				migCache.Tensor += float_value
 			} else if val.FieldId == 1005 {
-				migCache.Dram += float_value
+				migCache.DRAM += float_value
 			} else if val.FieldId == 1006 {
 				migCache.FP64 += float_value
 			} else if val.FieldId == 1007 {
@@ -144,11 +145,6 @@ func generateMigCache(monitoringInfo []MonitoringInfo) map[uint]*MigResources {
 			} else {
 				continue
 			}
-		}
-
-		v, ok := migResourceCache[mi.DeviceInfo.GPU]
-		if !ok {
-			migResourceCache[mi.DeviceInfo.GPU] = migCache
 		}
 	}
 	fmt.Printf("\nMig resource cache : %+v\n", migResourceCache)
