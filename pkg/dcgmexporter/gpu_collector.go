@@ -371,7 +371,7 @@ func ToMetric(
 		if instanceInfo != nil {
 			m.MigProfile = instanceInfo.ProfileName
 			m.GPUInstanceID = fmt.Sprintf("%d", instanceInfo.Info.NvmlInstanceId)
-			m.Value = migDeviceResource(v, instanceInfo.ProfileName, m.GPUInstanceID, d.GPU, counter, &migResourceCache)
+			m.Value = migDeviceResource(v, instanceInfo.ProfileName, m.GPUInstanceID, d.GPU, counter, migResourceCache)
 		} else {
 			m.MigProfile = ""
 			m.GPUInstanceID = ""
