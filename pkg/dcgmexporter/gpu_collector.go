@@ -98,7 +98,7 @@ func (c *DCGMCollector) Cleanup() {
 	}
 }
 
-func generateMigCache(monitoringInfo []MonitoringInfo) map[unit][]MigResources {
+func generateMigCache(monitoringInfo []MonitoringInfo) map[uint][]MigResources {
 	migResourceCache := make(map[uint][]MigResources)
 	for _, mi := range monitoringInfo {
 		var vals []dcgm.FieldValue_v1
@@ -304,8 +304,8 @@ func ToCPUMetric(metrics MetricsByCounter,
 	}
 }
 
-func migDeviceResource(v, profile, uuid, gpu string, counter Counter, migResourceCache *map[unit][]MigResources) string{
-	if counter.FieldId != 155 {
+func migDeviceResource(v, profile, uuid string, gpu int, counter Counter, migResourceCache *map[uint][]MigResources) string{
+	if counter.FieldID != 155 {
 		return v
 	}
 	scaling_factor, err := strconv.Atoi(string(profile[0]))
@@ -318,7 +318,7 @@ func migDeviceResource(v, profile, uuid, gpu string, counter Counter, migResourc
 	}
 
 	scaled_value := float64(value) * float64(scaling_factor) / 7
-	return fmt.Sprintf("%f", value)
+	return fmt.Sprintf("%f", scaled_value)
 }
 
 func ToMetric(
@@ -330,7 +330,7 @@ func ToMetric(
 	useOld bool,
 	hostname string,
 	replaceBlanksInModelName bool,
-	migResourceCache map[unit][]MigResources,
+	migResourceCache map[uint][]MigResources,
 ) {
 	var labels = map[string]string{}
 
