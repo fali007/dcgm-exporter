@@ -294,7 +294,7 @@ func migDeviceResource(v, profile, id string, gpu uint, counter Counter, migReso
 func processMigCacheForPower(m []MigResources, id string, idle_power float64) float64 {
 	totalResource := MigResourceCache{}
 	var mig_instance MigResources
-	for device := range m {
+	for _, device := range m {
 		totalResource.Tensor += device.ResourceCache.Tensor
 		totalResource.Dram += device.ResourceCache.Dram
 		totalResource.FP64 += device.ResourceCache.FP64
@@ -322,7 +322,7 @@ func processMigCacheForPower(m []MigResources, id string, idle_power float64) fl
 		denom += 1
 	}
 
-	idle_power_scaled := (idle_power / denom) * (mig_instance.Tensor/totalResource.Tensor + mig_instance.Dram/totalResource.Dram + mig_instance.FP64/totalResource.FP64 + mig_instance.FP32/totalResource.FP32 + mig_instance.FP16/totalResource.FP16)
+	idle_power_scaled := (idle_power / denom) * (mig_instance.ResourceCache.Tensor/totalResource.Tensor + mig_instance.ResourceCache.Dram/totalResource.Dram + mig_instance.ResourceCache.FP64 / totalResource.FP64 + mig_instance.ResourceCache.FP32/totalResource.FP32 + mig_instance.ResourceCache.FP16/totalResource.FP16)
 	return idle_power_scaled
 }
 func ToMetric(
