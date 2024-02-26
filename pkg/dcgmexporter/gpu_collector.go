@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"strconv"
 
 	"github.com/NVIDIA/go-dcgm/pkg/dcgm"
 	"github.com/sirupsen/logrus"
@@ -97,7 +98,7 @@ func (c *DCGMCollector) Cleanup() {
 	}
 }
 
-func GenerateMigCache(monitoringInfo []MonitoringInfo) {
+func generateMigCache(monitoringInfo []MonitoringInfo) map[unit][]MigResources {
 	migResourceCache := make(map[uint][]MigResources)
 	for _, mi := range monitoringInfo {
 		var vals []dcgm.FieldValue_v1
@@ -146,12 +147,13 @@ func GenerateMigCache(monitoringInfo []MonitoringInfo) {
 		}
 	}
 	fmt.Printf("\nMig resource cache : %+v\n", migResourceCache)
+	return migResourceCache
 }
 
 func (c *DCGMCollector) GetMetrics() (MetricsByCounter, error) {
 	monitoringInfo := GetMonitoredEntities(c.SysInfo)
 
-	GenerateMigCache(monitoringInfo)
+	migResourceCache := generateMigCache(monitoringInfo)
 
 	metrics := make(MetricsByCounter)
 
@@ -186,7 +188,8 @@ func (c *DCGMCollector) GetMetrics() (MetricsByCounter, error) {
 				mi.InstanceInfo,
 				c.UseOldNamespace,
 				c.Hostname,
-				c.ReplaceBlanksInModelName)
+				c.ReplaceBlanksInModelName,
+			    migResourceCache)
 		}
 	}
 
@@ -301,6 +304,23 @@ func ToCPUMetric(metrics MetricsByCounter,
 	}
 }
 
+func migDeviceResource(v, profile, uuid, gpu string, counter Counter, migResourceCache *map[unit][]MigResources) string{
+	if counter.FieldId != 155 {
+		return v
+	}
+	scaling_factor, err := strconv.Atoi(string(profile[0]))
+	if err := nil {
+		return v
+	}
+	value, err := strconv.Atoi(v)
+	if err != nil {
+		return v
+	}
+
+	scaled_value := float64(value) * float64(scaling_factor) / 7
+	return fmt.Sprintf("%f", value)
+}
+
 func ToMetric(
 	metrics MetricsByCounter,
 	values []dcgm.FieldValue_v1,
@@ -310,6 +330,7 @@ func ToMetric(
 	useOld bool,
 	hostname string,
 	replaceBlanksInModelName bool,
+	migResourceCache map[unit][]MigResources,
 ) {
 	var labels = map[string]string{}
 
@@ -353,6 +374,7 @@ func ToMetric(
 		if instanceInfo != nil {
 			m.MigProfile = instanceInfo.ProfileName
 			m.GPUInstanceID = fmt.Sprintf("%d", instanceInfo.Info.NvmlInstanceId)
+			m.Value = migDeviceResource(v, instanceInfo.ProfileName, d.UUID, d.GPU, counter, &migResourceCache)
 		} else {
 			m.MigProfile = ""
 			m.GPUInstanceID = ""
