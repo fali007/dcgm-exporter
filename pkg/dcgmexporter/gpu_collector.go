@@ -304,7 +304,7 @@ func ToCPUMetric(metrics MetricsByCounter,
 	}
 }
 
-func migDeviceResource(v, profile, uuid string, gpu int, counter Counter, migResourceCache *map[uint][]MigResources) string{
+func migDeviceResource(v, profile, uuid string, gpu uint, counter Counter, migResourceCache *map[uint][]MigResources) string{
 	if counter.FieldID != 155 {
 		return v
 	}
