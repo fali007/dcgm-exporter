@@ -98,12 +98,12 @@ func (c *DCGMCollector) Cleanup() {
 	}
 }
 
-func generateMigCache(monitoringInfo []MonitoringInfo) map[uint][]MigResources {
-	migResourceCache := make(map[uint][]MigResources)
+func generateMigCache(monitoringInfo []MonitoringInfo) map[uint]*MigResources {
+	migResourceCache := make(map[uint]*MigResources)
 	for _, mi := range monitoringInfo {
 		var vals []dcgm.FieldValue_v1
 		var err error
-		fileds := []dcgm.Short{dcgm.DCGM_FI_DEV_MEM_COPY_UTIL, dcgm.DCGM_FI_PROF_PIPE_TENSOR_ACTIVE, dcgm.DCGM_FI_PROF_SM_ACTIVE, dcgm.DCGM_FI_PROF_SM_OCCUPANCY}
+		fileds := []dcgm.Short{dcgm.DCGM_FI_PROF_PIPE_TENSOR_ACTIVE, dcgm.DCGM_FI_PROF_DRAM_ACTIVE, dcgm.DCGM_FI_PROF_PIPE_FP64_ACTIVE, dcgm.DCGM_FI_PROF_PIPE_FP32_ACTIVE, dcgm.DCGM_FI_PROF_PIPE_FP16_ACTIVE}
 		// Added else for testsing in non mig system
 		if mi.InstanceInfo != nil {
 			vals, err = dcgm.EntityGetLatestValues(mi.Entity.EntityGroupId, mi.Entity.EntityId, fileds)
@@ -117,35 +117,41 @@ func generateMigCache(monitoringInfo []MonitoringInfo) map[uint][]MigResources {
 				}
 			}
 		}
-		migCache := MigResources{}
+		var migCache *MigResources
+		migCache, ok := migResourceCache[mi.DeviceInfo.GPU]
+		if !ok {
+			migCache = &MigResources{0.0, 0.0, 0.0, 0.0, 0.0}
+		}
 		for _, val := range vals {
 			v := ToString(val)
 			if v == SkipDCGMValue {
 				continue
 			}
-			if val.FieldId == 204 {
-				migCache.ResourceCache.Memory = v
-			} else if val.FieldId == 1004 {
-				migCache.ResourceCache.Tensor = v
-			} else if val.FieldId == 1002 {
-				migCache.ResourceCache.SMActive = v
-			} else if val.FieldId == 1003 {
-				migCache.ResourceCache.SMOccupancy = v
+			float_value, err := strconv.ParseFloat(v, 64)
+			if err != nil {
+				continue
+			}
+			if val.FieldId == 1004 {
+				migCache.Tensor += float_value
+			} else if val.FieldId == 1005 {
+				migCache.Dram += float_value
+			} else if val.FieldId == 1006 {
+				migCache.FP64 += float_value
+			} else if val.FieldId == 1007 {
+				migCache.FP32 += float_value
+			} else if val.FieldId == 1008 {
+				migCache.FP16 += float_value
 			} else {
 				continue
 			}
 		}
-		if mi.InstanceInfo != nil {
-			migCache.Profile = mi.InstanceInfo.ProfileName
-		}
-		migCache.UUID = mi.DeviceInfo.UUID
+
 		v, ok := migResourceCache[mi.DeviceInfo.GPU]
-		if ok {
-			migResourceCache[mi.DeviceInfo.GPU] = append(v, migCache)
-		} else {
-			migResourceCache[mi.DeviceInfo.GPU] = []MigResources{migCache}
+		if !ok {
+			migResourceCache[mi.DeviceInfo.GPU] = migCache
 		}
 	}
+	fmt.Printf("\nMig resource cache : %+v\n", migResourceCache)
 	return migResourceCache
 }
 
@@ -303,7 +309,7 @@ func ToCPUMetric(metrics MetricsByCounter,
 	}
 }
 
-func migDeviceResource(v, profile, uuid string, gpu uint, counter Counter, migResourceCache *map[uint][]MigResources) string {
+func migDeviceResource(v, profile, uuid string, gpu uint, counter Counter, migResourceCache map[uint]*MigResources) string {
 	if counter.FieldID != 155 {
 		return v
 	}
@@ -319,9 +325,17 @@ func migDeviceResource(v, profile, uuid string, gpu uint, counter Counter, migRe
 		return v
 	}
 
-	scaled_value := value * float64(scaling_factor) / 7
-	fmt.Printf("\tScaled value %f\n", scaled_value)
-	return fmt.Sprintf("%f", scaled_value)
+	// Divide Idle power (Divide by scaling factor)
+	// How to get Idle power (Take minimum?)
+	scaled_idle_power := 90.0 * float64(scaling_factor) / 7
+
+	// Divide Active Power
+	active_power := value - 90.0
+	// TODO
+	scaled_active_power := active_power * float64(scaling_factor) / 7
+	total_power := scaled_active_power + scaled_idle_power
+	fmt.Printf("\tScaled value %f\n", total_power)
+	return fmt.Sprintf("%f", total_power)
 }
 
 func ToMetric(
@@ -333,7 +347,7 @@ func ToMetric(
 	useOld bool,
 	hostname string,
 	replaceBlanksInModelName bool,
-	migResourceCache map[uint][]MigResources,
+	migResourceCache map[uint]*MigResources,
 ) {
 	var labels = map[string]string{}
 
@@ -377,7 +391,7 @@ func ToMetric(
 		if instanceInfo != nil {
 			m.MigProfile = instanceInfo.ProfileName
 			m.GPUInstanceID = fmt.Sprintf("%d", instanceInfo.Info.NvmlInstanceId)
-			m.Value = migDeviceResource(v, instanceInfo.ProfileName, d.UUID, d.GPU, counter, &migResourceCache)
+			m.Value = migDeviceResource(v, instanceInfo.ProfileName, d.UUID, d.GPU, counter, migResourceCache)
 		} else {
 			m.MigProfile = ""
 			m.GPUInstanceID = ""
