@@ -309,7 +309,7 @@ func migDeviceResource(v, profile, uuid, gpu string, counter Counter, migResourc
 		return v
 	}
 	scaling_factor, err := strconv.Atoi(string(profile[0]))
-	if err := nil {
+	if err != nil {
 		return v
 	}
 	value, err := strconv.Atoi(v)
