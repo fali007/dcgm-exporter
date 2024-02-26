@@ -1,14 +1,17 @@
 package dcgmexporter
+
 import (
 	"errors"
 	"fmt"
+	"github.com/NVIDIA/go-dcgm/pkg/dcgm"
+	"github.com/sirupsen/logrus"
 	"os"
 	"strconv"
 	"strings"
-	"github.com/NVIDIA/go-dcgm/pkg/dcgm"
-	"github.com/sirupsen/logrus"
 )
+
 type DCGMCollectorConstructor func([]Counter, string, *Config, FieldEntityGroupTypeSystemInfoItem) (*DCGMCollector, func(), error)
+
 func NewDCGMCollector(c []Counter,
 	hostname string,
 	config *Config,
@@ -73,7 +76,7 @@ func generateMigCache(monitoringInfo []MonitoringInfo) map[uint][]MigResources {
 		var vals []dcgm.FieldValue_v1
 		var err error
 		fileds := []dcgm.Short{dcgm.DCGM_FI_PROF_PIPE_TENSOR_ACTIVE, dcgm.DCGM_FI_PROF_DRAM_ACTIVE, dcgm.DCGM_FI_PROF_PIPE_FP64_ACTIVE, dcgm.DCGM_FI_PROF_PIPE_FP32_ACTIVE, dcgm.DCGM_FI_PROF_PIPE_FP16_ACTIVE}
-		// Added else for testsing in non mig system
+
 		if mi.InstanceInfo != nil {
 			vals, err = dcgm.EntityGetLatestValues(mi.Entity.EntityGroupId, mi.Entity.EntityId, fileds)
 		} else {
@@ -110,10 +113,10 @@ func generateMigCache(monitoringInfo []MonitoringInfo) map[uint][]MigResources {
 				continue
 			}
 		}
-		if mi.InstanceInfo != nil {
-			migCache.Profile = mi.InstanceInfo.ProfileName
-		}
-		migCache.UUID = mi.DeviceInfo.UUID
+
+		migCache.Profile = mi.InstanceInfo.ProfileName
+		migCache.ID = fmt.Sprintf("%d", mi.InstanceInfo.Info.NvmlInstanceId)
+
 		v, ok := migResourceCache[mi.DeviceInfo.GPU]
 		if ok {
 			migResourceCache[mi.DeviceInfo.GPU] = append(v, migCache)
@@ -256,7 +259,7 @@ func ToCPUMetric(metrics MetricsByCounter,
 		metrics[m.Counter] = append(metrics[m.Counter], m)
 	}
 }
-func migDeviceResource(v, profile, uuid string, gpu uint, counter Counter, migResourceCache *map[uint][]MigResources) string {
+func migDeviceResource(v, profile, id string, gpu uint, counter Counter, migResourceCache map[uint][]MigResources) string {
 	if counter.FieldID != 155 {
 		return v
 	}
@@ -279,10 +282,48 @@ func migDeviceResource(v, profile, uuid string, gpu uint, counter Counter, migRe
 	// Divide Active Power
 	active_power := value - 90.0
 	// TODO
-	scaled_active_power := active_power * float64(scaling_factor) / 7
+	cachedResource, ok := migResourceCache[id]
+	if !ok {
+		return v
+	}
+	scaled_active_power := processMigCacheForPower(cachedResource, id, active_power)
 	total_power := scaled_active_power + scaled_idle_power
 	fmt.Printf("\tScaled value %f\n", total_power)
 	return fmt.Sprintf("%f", total_power)
+}
+func processMigCacheForPower(m []MigResources, id string, idle_power float64) float64 {
+	totalResource := MigResources{}
+	var mig_instance MigResources
+	for device := range m {
+		totalResource.Tensor += device.ResourceCache.Tensor
+		totalResource.Dram += device.ResourceCache.Dram
+		totalResource.FP64 += device.ResourceCache.FP64
+		totalResource.FP32 += device.ResourceCache.FP32
+		totalResource.FP16 += device.ResourceCache.FP16
+		if device.ID == id {
+			mig_instance = device
+		}
+	}
+
+	denom := 0.0
+	if totalResource.Tensor == 0.0 {
+		denom += 1
+	}
+	if totalResource.Dram == 0.0 {
+		denom += 0.7
+	}
+	if totalResource.FP64 == 0.0 {
+		denom += 1
+	}
+	if totalResource.FP32 == 0.0 {
+		denom += 1
+	}
+	if totalResource.FP16 == 0.0 {
+		denom += 1
+	}
+
+	idle_power_scaled := (idle_power / denom) * (mig_instance.Tensor/totalResource.Tensor + mig_instance.Dram/totalResource.Dram + mig_instance.FP64/totalResource.FP64 + mig_instance.FP32/totalResource.FP32 + mig_instance.FP16/totalResource.FP16)
+	return idle_power_scaled
 }
 func ToMetric(
 	metrics MetricsByCounter,
@@ -316,21 +357,21 @@ func ToMetric(
 		}
 		gpuModel := getGPUModel(d, replaceBlanksInModelName)
 		m := Metric{
-			Counter: counter,
-			Value:   v,
+			Counter:      counter,
+			Value:        v,
 			UUID:         uuid,
 			GPU:          fmt.Sprintf("%d", d.GPU),
 			GPUUUID:      d.UUID,
 			GPUDevice:    fmt.Sprintf("nvidia%d", d.GPU),
 			GPUModelName: gpuModel,
 			Hostname:     hostname,
-			Labels:     labels,
-			Attributes: map[string]string{},
+			Labels:       labels,
+			Attributes:   map[string]string{},
 		}
 		if instanceInfo != nil {
 			m.MigProfile = instanceInfo.ProfileName
 			m.GPUInstanceID = fmt.Sprintf("%d", instanceInfo.Info.NvmlInstanceId)
-			m.Value = migDeviceResource(v, instanceInfo.ProfileName, d.UUID, d.GPU, counter, &migResourceCache)
+			m.Value = migDeviceResource(v, instanceInfo.ProfileName, m.GPUInstanceID, d.GPU, counter, &migResourceCache)
 		} else {
 			m.MigProfile = ""
 			m.GPUInstanceID = ""
