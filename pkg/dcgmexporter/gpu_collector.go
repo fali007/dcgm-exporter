@@ -259,6 +259,12 @@ func ToCPUMetric(metrics MetricsByCounter,
 		metrics[m.Counter] = append(metrics[m.Counter], m)
 	}
 }
+func min(a, b float64) float64 {
+	if a > b {
+		return b
+	}
+	return a
+}
 func migDeviceResource(v, profile, id string, gpu uint, counter Counter, migResourceCache map[uint][]MigResources) string {
 	if counter.FieldID != 155 {
 		return v
@@ -277,21 +283,24 @@ func migDeviceResource(v, profile, id string, gpu uint, counter Counter, migReso
 
 	// Divide Idle power (Divide by scaling factor)
 	// How to get Idle power (Take minimum?)
-	scaled_idle_power := 90.0 * float64(scaling_factor) / 7
+	scaled_idle_power := min(90.0, v) * float64(scaling_factor) / 7
 
 	// Divide Active Power
-	active_power := value - 90.0
+	active_power := value - min(90.0, v)
 	// TODO
 	cachedResource, ok := migResourceCache[gpu]
 	if !ok {
 		return v
 	}
-	scaled_active_power := processMigCacheForPower(cachedResource, id, active_power)
+	scaled_active_power, err := processMigCacheForPower(cachedResource, id, active_power)
+	if err != nil {
+		scaled_active_power = active_power * float64(scaling_factor) / 7
+	}
 	total_power := scaled_active_power + scaled_idle_power
 	fmt.Printf("\tScaled value %f\n", total_power)
 	return fmt.Sprintf("%f", total_power)
 }
-func processMigCacheForPower(m []MigResources, id string, idle_power float64) float64 {
+func processMigCacheForPower(m []MigResources, id string, idle_power float64) (float64, error) {
 	totalResource := MigResourceCache{}
 	var mig_instance MigResources
 	for _, device := range m {
@@ -306,24 +315,28 @@ func processMigCacheForPower(m []MigResources, id string, idle_power float64) fl
 	}
 
 	denom := 0.0
-	if totalResource.Tensor == 0.0 {
+	if totalResource.Tensor != 0.0 {
 		denom += 1
 	}
-	if totalResource.Dram == 0.0 {
-		denom += 0.7
-	}
-	if totalResource.FP64 == 0.0 {
+	if totalResource.Dram != 0.0 {
 		denom += 1
 	}
-	if totalResource.FP32 == 0.0 {
+	if totalResource.FP64 != 0.0 {
 		denom += 1
 	}
-	if totalResource.FP16 == 0.0 {
+	if totalResource.FP32 != 0.0 {
+		denom += 1
+	}
+	if totalResource.FP16 != 0.0 {
 		denom += 1
 	}
 
+	if denom == 0 {
+		return nil, errors.New("Denominator is 0")
+	}
+
 	idle_power_scaled := (idle_power / denom) * (mig_instance.ResourceCache.Tensor/totalResource.Tensor + mig_instance.ResourceCache.Dram/totalResource.Dram + mig_instance.ResourceCache.FP64/totalResource.FP64 + mig_instance.ResourceCache.FP32/totalResource.FP32 + mig_instance.ResourceCache.FP16/totalResource.FP16)
-	return idle_power_scaled
+	return idle_power_scaled, nil
 }
 func ToMetric(
 	metrics MetricsByCounter,
