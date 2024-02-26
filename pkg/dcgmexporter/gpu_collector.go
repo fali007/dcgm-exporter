@@ -310,10 +310,12 @@ func migDeviceResource(v, profile, uuid string, gpu uint, counter Counter, migRe
 	fmt.Printf("\nAttributing mig resource metric %+v\nCurrent value %s, Profile %s\n", counter, v, profile)
 	scaling_factor, err := strconv.Atoi(string(profile[0]))
 	if err != nil {
+		fmt.Println(err)
 		return v
 	}
 	value, err := strconv.Atoi(v)
 	if err != nil {
+		fmt.Println(err)
 		return v
 	}
 
