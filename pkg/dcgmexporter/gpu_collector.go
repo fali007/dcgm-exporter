@@ -288,6 +288,7 @@ func migDeviceResource(v, profile, id string, gpu uint, counter Counter, migReso
 	// Divide Active Power
 	active_power := value - min(90.0, value)
 	// TODO
+	// Missing part - scaling based on mig size
 	cachedResource, ok := migResourceCache[gpu]
 	if !ok {
 		return v
@@ -299,6 +300,13 @@ func migDeviceResource(v, profile, id string, gpu uint, counter Counter, migReso
 	total_power := scaled_active_power + scaled_idle_power
 	fmt.Printf("\tScaled value %f\n", total_power)
 	return fmt.Sprintf("%f", total_power)
+}
+func getFraction(a, b float64) float64 {
+	c := a / b
+	if c != c {
+		return 0.0
+	}
+	return c
 }
 func processMigCacheForPower(m []MigResources, id string, idle_power float64) (float64, error) {
 	totalResource := MigResourceCache{}
@@ -331,11 +339,11 @@ func processMigCacheForPower(m []MigResources, id string, idle_power float64) (f
 		denom += 1
 	}
 
-	if denom == 0 {
+	if denom == 0.0 {
 		return 0.0, errors.New("Denominator is 0")
 	}
 
-	idle_power_scaled := (idle_power / denom) * (mig_instance.ResourceCache.Tensor/totalResource.Tensor + mig_instance.ResourceCache.Dram/totalResource.Dram + mig_instance.ResourceCache.FP64/totalResource.FP64 + mig_instance.ResourceCache.FP32/totalResource.FP32 + mig_instance.ResourceCache.FP16/totalResource.FP16)
+	idle_power_scaled := (idle_power / denom) * (getFraction(mig_instance.ResourceCache.Tensor, totalResource.Tensor) + getFraction(mig_instance.ResourceCache.Dram, totalResource.Dram) + getFraction(mig_instance.ResourceCache.FP64, totalResource.FP64) + getFraction(mig_instance.ResourceCache.FP32, totalResource.FP32) + getFraction(mig_instance.ResourceCache.FP16, totalResource.FP16))
 	return idle_power_scaled, nil
 }
 func ToMetric(
