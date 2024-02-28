@@ -308,43 +308,42 @@ func getFraction(a, b float64) float64 {
 	}
 	return c
 }
-func processMigCacheForPower(m []MigResources, id string, idle_power float64) (float64, error) {
+func processMigCacheForPower(m []MigResources, id string, active_power float64) (float64, error) {
 	totalResource := MigResourceCache{}
 	var mig_instance MigResources
+	var feature_weights MigResourceCache = MigResourceCache{0.338, 0.152, 0.17, 0.17, 0.17}
+
 	for _, device := range m {
+		// Scale wrt mig profile and weights
+		s_factor, err := strconv.Atoi(string(device.Profile[0]))
+		if err != nil {
+			fmt.Println("No profile scaling factor found")
+			return 0.0, errors.New("No profile scaling factor found")
+		}
+		scaling_factor := float64(s_factor)
+		device.ResourceCache.Tensor = device.ResourceCache.Tensor * scaling_factor * feature_weights.Tensor
 		totalResource.Tensor += device.ResourceCache.Tensor
+		device.ResourceCache.Dram = device.ResourceCache.Dram * scaling_factor * feature_weights.Dram
 		totalResource.Dram += device.ResourceCache.Dram
+		device.ResourceCache.FP64 = device.ResourceCache.FP64 * scaling_factor * feature_weights.FP64
 		totalResource.FP64 += device.ResourceCache.FP64
+		device.ResourceCache.FP32 = device.ResourceCache.FP32 * scaling_factor * feature_weights.FP32
 		totalResource.FP32 += device.ResourceCache.FP32
+		device.ResourceCache.FP16 = device.ResourceCache.FP16 * scaling_factor * feature_weights.FP16
 		totalResource.FP16 += device.ResourceCache.FP16
 		if device.ID == id {
 			mig_instance = device
 		}
 	}
 
-	denom := 0.0
-	if totalResource.Tensor != 0.0 {
-		denom += 1
-	}
-	if totalResource.Dram != 0.0 {
-		denom += 1
-	}
-	if totalResource.FP64 != 0.0 {
-		denom += 1
-	}
-	if totalResource.FP32 != 0.0 {
-		denom += 1
-	}
-	if totalResource.FP16 != 0.0 {
-		denom += 1
-	}
+	summed_total_metrics := totalResource.Tensor + totalResource.Dram + totalResource.FP64 + totalResource.FP32 + totalResource.FP16
+	summed_instance_metrics := mig_instance.ResourceCache.Tensor + mig_instance.ResourceCache.Dram + mig_instance.ResourceCache.FP64 + mig_instance.ResourceCache.FP32 + mig_instance.ResourceCache.FP16
 
-	if denom == 0.0 {
-		return 0.0, errors.New("Denominator is 0")
-	}
+	active_power_scaled := active_power * summed_instance_metrics / summed_total_metrics
 
-	idle_power_scaled := (idle_power / denom) * (getFraction(mig_instance.ResourceCache.Tensor, totalResource.Tensor) + getFraction(mig_instance.ResourceCache.Dram, totalResource.Dram) + getFraction(mig_instance.ResourceCache.FP64, totalResource.FP64) + getFraction(mig_instance.ResourceCache.FP32, totalResource.FP32) + getFraction(mig_instance.ResourceCache.FP16, totalResource.FP16))
-	return idle_power_scaled, nil
+	fmt.Printf("Total Resource :\n%+v\nMig Instance :\n%+v\n", totalResource, mig_instance)
+
+	return active_power_scaled, nil
 }
 func ToMetric(
 	metrics MetricsByCounter,
