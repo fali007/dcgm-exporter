@@ -301,13 +301,6 @@ func migDeviceResource(v, profile, id string, gpu uint, counter Counter, migReso
 	fmt.Printf("\tScaled value %f\n", total_power)
 	return fmt.Sprintf("%f", total_power)
 }
-func getFraction(a, b float64) float64 {
-	c := a / b
-	if c != c {
-		return 0.0
-	}
-	return c
-}
 func processMigCacheForPower(m []MigResources, id string, active_power float64) (float64, error) {
 	totalResource := MigResourceCache{}
 	var mig_instance MigResources
@@ -340,9 +333,10 @@ func processMigCacheForPower(m []MigResources, id string, active_power float64) 
 	summed_instance_metrics := mig_instance.ResourceCache.Tensor + mig_instance.ResourceCache.Dram + mig_instance.ResourceCache.FP64 + mig_instance.ResourceCache.FP32 + mig_instance.ResourceCache.FP16
 
 	active_power_scaled := active_power * summed_instance_metrics / summed_total_metrics
-
 	fmt.Printf("Total Resource :\n%+v\nMig Instance :\n%+v\n", totalResource, mig_instance)
-
+	if active_power_scaled != active_power_scaled {
+		return 0.0, errors.New("Error computing active power")
+	}
 	return active_power_scaled, nil
 }
 func ToMetric(
