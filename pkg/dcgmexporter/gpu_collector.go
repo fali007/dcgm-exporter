@@ -287,10 +287,10 @@ func migDeviceResource(v, profile, id string, gpu uint, counter Counter, migReso
 
 	// Divide Idle power (Divide by scaling factor)
 	// How to get Idle power (Take minimum?)
-	scaled_idle_power := min(90.0, value) * float64(scaling_factor) / 7
+	scaled_idle_power := min(85.0, value) * float64(scaling_factor) / 7
 
 	// Divide Active Power
-	active_power := value - min(90.0, value)
+	active_power := value - min(85.0, value)
 	// TODO
 	// Missing part - scaling based on mig size
 	cachedResource, ok := migResourceCache[gpu]
