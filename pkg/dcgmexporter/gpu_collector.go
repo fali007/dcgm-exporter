@@ -75,7 +75,7 @@ func generateMigCache(monitoringInfo []MonitoringInfo) map[uint][]MigResources {
 	for _, mi := range monitoringInfo {
 		var vals []dcgm.FieldValue_v1
 		var err error
-		fileds := []dcgm.Short{dcgm.DCGM_FI_PROF_PIPE_TENSOR_ACTIVE, dcgm.DCGM_FI_PROF_DRAM_ACTIVE, dcgm.DCGM_FI_PROF_PIPE_FP64_ACTIVE, dcgm.DCGM_FI_PROF_PIPE_FP32_ACTIVE, dcgm.DCGM_FI_PROF_PIPE_FP16_ACTIVE}
+		fileds := []dcgm.Short{dcgm.DCGM_FI_PROF_PIPE_TENSOR_ACTIVE, dcgm.DCGM_FI_PROF_DRAM_ACTIVE, dcgm.DCGM_FI_PROF_PIPE_FP64_ACTIVE, dcgm.DCGM_FI_PROF_PIPE_FP32_ACTIVE, dcgm.DCGM_FI_PROF_PIPE_FP16_ACTIVE, dcgm.DCGM_FI_PROF_SM_ACTIVE, dcgm.DCGM_FI_PROF_SM_OCCUPANCY}
 
 		if mi.InstanceInfo != nil {
 			vals, err = dcgm.EntityGetLatestValues(mi.Entity.EntityGroupId, mi.Entity.EntityId, fileds)
@@ -109,6 +109,10 @@ func generateMigCache(monitoringInfo []MonitoringInfo) map[uint][]MigResources {
 				migCache.ResourceCache.FP32 = float_value
 			} else if val.FieldId == 1008 {
 				migCache.ResourceCache.FP16 = float_value
+			} else if val.FieldId == 1002 {
+				migCache.ResourceCache.SM_ACTIVE = float_value
+			} else if val.FieldId == 1003 {
+				migCache.ResourceCache.SM_OCCUPANCY = float_value
 			} else {
 				continue
 			}
@@ -302,41 +306,39 @@ func migDeviceResource(v, profile, id string, gpu uint, counter Counter, migReso
 	return fmt.Sprintf("%f", total_power)
 }
 func processMigCacheForPower(m []MigResources, id string, active_power float64) (float64, error) {
-	totalResource := MigResourceCache{}
 	var mig_instance MigResources
-	var feature_weights MigResourceCache = MigResourceCache{0.338, 0.152, 0.17, 0.17, 0.17}
+	var feature_weights MigResourceCache = MigResourceCache{0.338, 0.152, 0.17, 0.17, 0.17, 0.0, 0.0}
+	scaled_denominator := 0.0
 
 	for _, device := range m {
-		// Scale wrt mig profile and weights
 		s_factor, err := strconv.Atoi(string(device.Profile[0]))
 		if err != nil {
 			fmt.Println("No profile scaling factor found")
 			return 0.0, errors.New("No profile scaling factor found")
 		}
 		scaling_factor := float64(s_factor)
+
 		device.ResourceCache.Tensor = device.ResourceCache.Tensor * scaling_factor * feature_weights.Tensor
-		totalResource.Tensor += device.ResourceCache.Tensor
 		device.ResourceCache.Dram = device.ResourceCache.Dram * scaling_factor * feature_weights.Dram
-		totalResource.Dram += device.ResourceCache.Dram
 		device.ResourceCache.FP64 = device.ResourceCache.FP64 * scaling_factor * feature_weights.FP64
-		totalResource.FP64 += device.ResourceCache.FP64
 		device.ResourceCache.FP32 = device.ResourceCache.FP32 * scaling_factor * feature_weights.FP32
-		totalResource.FP32 += device.ResourceCache.FP32
 		device.ResourceCache.FP16 = device.ResourceCache.FP16 * scaling_factor * feature_weights.FP16
-		totalResource.FP16 += device.ResourceCache.FP16
+		device.ResourceCache.SM_ACTIVE = device.ResourceCache.SM_ACTIVE * scaling_factor
+		device.ResourceCache.SM_OCCUPANCY = device.ResourceCache.SM_OCCUPANCY * scaling_factor
+
+		scaled_denominator += (device.ResourceCache.Tensor + device.ResourceCache.Dram + device.ResourceCache.FP64 + device.ResourceCache.FP32 + device.ResourceCache.FP16) * device.ResourceCache.SM_ACTIVE * device.ResourceCache.SM_OCCUPANCY
+
 		if device.ID == id {
 			mig_instance = device
 		}
 	}
 
-	summed_total_metrics := totalResource.Tensor + totalResource.Dram + totalResource.FP64 + totalResource.FP32 + totalResource.FP16
-	summed_instance_metrics := mig_instance.ResourceCache.Tensor + mig_instance.ResourceCache.Dram + mig_instance.ResourceCache.FP64 + mig_instance.ResourceCache.FP32 + mig_instance.ResourceCache.FP16
-
-	active_power_scaled := active_power * summed_instance_metrics / summed_total_metrics
-	fmt.Printf("Total Resource :\n%+v\nMig Instance :\n%+v\n", totalResource, mig_instance)
+	summed_instance_metrics := (mig_instance.ResourceCache.Tensor + mig_instance.ResourceCache.Dram + mig_instance.ResourceCache.FP64 + mig_instance.ResourceCache.FP32 + mig_instance.ResourceCache.FP16) * mig_instance.ResourceCache.SM_ACTIVE * mig_instance.ResourceCache.SM_OCCUPANCY
+	active_power_scaled := active_power * summed_instance_metrics / scaled_denominator
 	if active_power_scaled != active_power_scaled {
 		return 0.0, errors.New("Error computing active power")
 	}
+
 	return active_power_scaled, nil
 }
 func ToMetric(
