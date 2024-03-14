@@ -15,19 +15,13 @@
 MKDIR    ?= mkdir
 REGISTRY ?= nvidia
 
-DCGM_VERSION   := 3.3.3
+DCGM_VERSION   := 3.3.5
 GOLANG_VERSION := 1.21.5
-VERSION        := 3.3.1
+VERSION        := 3.4.0
 FULL_VERSION   := $(DCGM_VERSION)-$(VERSION)
 OUTPUT         := type=oci,dest=/tmp/dcgm-exporter.tar
 PLATFORMS      := linux/amd64,linux/arm64
 DOCKERCMD      := docker buildx build
-
-NON_TEST_FILES  := pkg/dcgmexporter/dcgm.go pkg/dcgmexporter/gpu_collector.go pkg/dcgmexporter/parser.go
-NON_TEST_FILES  += pkg/dcgmexporter/pipeline.go pkg/dcgmexporter/server.go pkg/dcgmexporter/system_info.go
-NON_TEST_FILES  += pkg/dcgmexporter/types.go pkg/dcgmexporter/utils.go pkg/dcgmexporter/kubernetes.go
-NON_TEST_FILES  += cmd/dcgm-exporter/main.go
-MAIN_TEST_FILES := pkg/dcgmexporter/system_info_test.go
 
 .PHONY: all binary install check-format local
 all: ubuntu22.04 ubi9
@@ -35,7 +29,7 @@ all: ubuntu22.04 ubi9
 binary:
 	cd cmd/dcgm-exporter; go build -ldflags "-X main.BuildVersion=${DCGM_VERSION}-${VERSION}"
 
-test-main: $(NON_TEST_FILES) $(MAIN_TEST_FILES)
+test-main:
 	go test ./... -short
 
 install: binary
@@ -80,7 +74,10 @@ ubi9:
 .PHONY: integration
 test-integration:
 	go test -race -count=1 -timeout 5m -v $(TEST_ARGS) ./tests/integration/
-	
+
+test-coverage:
+	gocov test ./... | gocov report
+
 .PHONY: lint
 lint:
 	golangci-lint run ./...
@@ -92,3 +89,8 @@ validate-modules:
 	@echo "- Checking for any unused/missing packages in go.mod..."
 	go mod tidy
 	@git diff --exit-code -- go.sum go.mod
+
+.PHONY: tools
+tools: ## Install required tools and utilities
+	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.55.2
+	go install github.com/axw/gocov/gocov@latest
